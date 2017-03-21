@@ -39,7 +39,7 @@ class Vertex:
 
 class Edge:
 
-	def __init__(self, vertex1, vertex2, name = "", weight=1):
+	def __init__(self, vertex1, vertex2, uuid, name = "", weight=1):
 		self.vertex1 = vertex1
 		self.vertex2 = vertex2
 		self.weight = weight
@@ -56,6 +56,9 @@ class Edge:
 		if fromVertex == self.vertex1:
 			return self.vertex2
 		return self.vertex1
+
+	def printDataFormatted(self):
+		print("Edge {0} has weight: {1}".format(self.name, str(self.weight)))
 
 class UniqueIDGenerator:
 

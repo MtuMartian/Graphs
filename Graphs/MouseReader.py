@@ -21,7 +21,8 @@ class MouseReader():
 			"addEdge" : self.addEdge,
 			"removeEdge" : self.removeEdgeByVertices,
 			"removeVertex" : self.removeVertexByName,
-			"updateEdgeWeight" : self.updateWeight
+			"updateEdgeWeight" : self.updateWeight,
+			"printGraphInfo" : self.printGraphInfo
 		}
 
 		# Declare graph data object
@@ -44,13 +45,14 @@ class MouseReader():
 		self.placingEdge = None
 		self.draggingVertex = None
 
-
 	def getVertIdFromName(self, name):
 		for key, vertex in self.vertViews.items():
 			if vertex.labelText == name:
 				return key
 
 	def getEdgeIdByVertIds(self, vid1, vid2):
+		if vid1 not in self.vertices or vid2 not in self.vertices:
+			return
 		v1 = self.vertViews[vid1]
 		v2 = self.vertViews[vid2]
 
@@ -67,7 +69,7 @@ class MouseReader():
 				self.moveVertex(vertex)
 				return
 
-		self.placeVertex(event)
+		self.addVertex(event)
 
 	"""
 	When the mouse is lifted, the dragging vertex should
@@ -99,7 +101,7 @@ class MouseReader():
 	Deletes any left over vertices then places a vertex at the
 	given point unless there is already one in that location
 	"""
-	def placeVertex(self, event):
+	def addVertex(self, event):
 		for key, vertex in self.vertViews.items():
 			if vertex.deleted:
 				self.vertices.remove(key)
@@ -114,13 +116,15 @@ class MouseReader():
 		vLabel = "v" + str(self.vIDGen.genNew())
 		vertex = VertexView(self.canvas, event.x, event.y, vid, label = vLabel)
 		self.vertViews[vid] = vertex
-		#self.graph.addVertex(Vertex(vLabel, vID)) ADD TO GRAPH
+		self.graph.addVertex(Vertex(vLabel, vid))
 
 	"""
 	Create a new edge at the location of the mouse if there is
 	a vertex there
 	"""
-	def addEdge(self, vert1, vert2):
+	def addEdge(self, vert1, vert2, weight=1):
+		if vert1 == vert2:
+			return
 		id1 = self.getVertIdFromName(vert1)
 		id2 = self.getVertIdFromName(vert2)
 		print("TESTING NEW ADD EDGE METHOD")
@@ -130,11 +134,14 @@ class MouseReader():
 		edgeLabel = vert1 + "-" + vert2
 		vertex1 = self.vertViews[id1]
 		vertex2 = self.vertViews[id2]
-		edge = EdgeView(self.canvas, vertex1, vertex2, label = edgeLabel, edgeID = edgeId)
+		edge = EdgeView(self.canvas, vertex1, vertex2, label = edgeLabel, edgeID = edgeId, weight = weight)
 		self.edges.add(edgeId)
 		self.edgeViews[edgeId] = edge
 		vertex1.addEdge(edge)
 		vertex2.addEdge(edge)
+		gv1 = self.graph.getVertexById(id1)
+		gv2 = self.graph.getVertexById(id2)
+		self.graph.addEdge(gv1, gv2, edgeId, edgeLabel, weight)
 
 	"""
 	Selects the vertex under the mouse to be the vertex being moved
@@ -174,16 +181,22 @@ class MouseReader():
 		vid2 = self.getVertIdFromName(vertex2name)
 
 		edgeID = self.getEdgeIdByVertIds(vid1, vid2)
+		if edgeID is None:
+			return
 		edge = self.edgeViews[edgeID]
 		edge.delete()
 		self.edges.remove(edgeID)
 		self.edgeViews.pop(edgeID)
+		self.graph.removeEdgeByVertIds(vid1, vid2)
 
 	def updateWeight(self, edgeID, weight):
 		for edge in self.edges:
 			if edge.edgeID == edgeID:
 				edge.updateWeight(weight)
 				return
+
+	def printGraphInfo(self):
+		self.graph.printInfo()
 
 	def receiveCommand(self, event=None):
 		current = self.commandEntry.get()
