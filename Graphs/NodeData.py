@@ -3,7 +3,7 @@ This is the python implementation of vertices and edges
 """
 
 class Vertex:
-	
+
 	def __init__(self, name, uuid):
 		self.edgeSet = []
 		self.name = name
@@ -76,5 +76,3 @@ class UniqueIDGenerator:
 
 	def prefix(self, num):
 		return self.prefix + str(num)
-
-

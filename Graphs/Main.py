@@ -2,7 +2,7 @@
 This is the main view
 """
 
-import tkinter 
+import tkinter
 import MouseReader
 
 def main():
@@ -22,7 +22,7 @@ def main():
 	# Create an entry for user to input commands
 	commandEntry = tkinter.Entry()
 	commandEntry.pack()
-	
+
 	# Create a mouse reader object to read mouse input
 	mouseInput = MouseReader.MouseReader(canvas, menuCanvas, commandEntry)
 	entryButton = tkinter.Button(mainWindow, text="Submit Command", command = mouseInput.receiveCommand)
@@ -31,7 +31,9 @@ def main():
 	canvas.bind("<Button-1>", mouseInput.mainCanvasClickedEvent)
 	canvas.bind("<Motion>", mouseInput.mainCanvasMouseOverEvent)
 	canvas.bind("<ButtonRelease-1>", mouseInput.mainCanvasMouseUpEvent)
-	menuCanvas.bind("<Button -1>", mouseInput.menuCanvasClickedEvent)
+
+	# Bind the enter button to submitting a command
+	mainWindow.bind('<Return>', mouseInput.receiveCommand)
 
 	mainWindow.mainloop()
 

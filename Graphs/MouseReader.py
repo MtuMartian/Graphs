@@ -17,18 +17,21 @@ from uuid import uuid4
 class MouseReader():
 
 	def __init__(self, canvas, menuCanvas, commandEntry):
-		self.strToFunc = {"restart" : self.restart, 
-			"removeEdge" : self.removeEdgeByID,
-			"removeVertex" : self.removeVertexByID,
-			"updateEdgeWeight" : self.updateWeight}
+		self.strToFunc = {
+			"addEdge" : self.addEdge,
+			"removeEdge" : self.removeEdgeByVertices,
+			"removeVertex" : self.removeVertexByName,
+			"updateEdgeWeight" : self.updateWeight
+		}
 
-		# Define initial state
-		self.state = State.NONE
 		# Declare graph data object
 		self.graph = Graph()
-		# Initialize lists to store vertices and edges
-		self.vertices = []
-		self.edges = []
+		# Initialize sets to store vertex and edge ids
+		self.vertices = set([])
+		self.edges = set([])
+		# Initialize dictionaries to store vertex and edge Views
+		self.vertViews = {}
+		self.edgeViews = {}
 		# Initialize canvas variables
 		self.canvas = canvas
 		self.menuCanvas = menuCanvas
@@ -40,41 +43,31 @@ class MouseReader():
 		self.selectedVertex = None
 		self.placingEdge = None
 		self.draggingVertex = None
-		# Parameters for menu icons
-		self.menuOvalX = 100
-		self.menuOvalY = 50
-		self.menuOvalSize = 50
 
-		self.menuLineX = 200
-		self.menuLineY = 50
-		self.menuLineSize = 50
-		# Draw menu icons
-		self.menuCanvas.create_oval(
-			self.menuOvalX - self.menuOvalSize / 2,
-			self.menuOvalY - self.menuOvalSize / 2,
-			self.menuOvalX + self.menuOvalSize / 2,
-			self.menuOvalY + self.menuOvalSize / 2, fill="blue")
-		self.menuCanvas.create_line(
-			self.menuLineX - self.menuLineSize / 2,
-			self.menuLineY - self.menuLineSize / 2,
-			self.menuLineX + self.menuLineSize / 2,
-			self.menuLineY + self.menuLineSize / 2)
-		
+
+	def getVertIdFromName(self, name):
+		for key, vertex in self.vertViews.items():
+			if vertex.labelText == name:
+				return key
+
+	def getEdgeIdByVertIds(self, vid1, vid2):
+		v1 = self.vertViews[vid1]
+		v2 = self.vertViews[vid2]
+
+		for edge in v1.edges:
+			if edge in v2.edges:
+				return edge.edgeID
 
 	"""
-	Event called when the main canvas is clicked. Depending on the state
-	the event may trigger:
-		a vertex being placed
-		an edge being placed
-		a vertex being moved
+	Event called when the main canvas is left clicked
 	"""
 	def mainCanvasClickedEvent(self, event):
-		if self.state == State.PLACING_VERTEX:
-			self.placeVertex(event)
-		if self.state == State.PLACING_EDGE:
-			self.placeEdge(event)
-		if self.state == State.NONE:
-			self.moveVertex(event)
+		for key, vertex in self.vertViews.items():
+			if vertex.containsPoint(event.x, event.y):
+				self.moveVertex(vertex)
+				return
+
+		self.placeVertex(event)
 
 	"""
 	When the mouse is lifted, the dragging vertex should
@@ -84,27 +77,16 @@ class MouseReader():
 		self.draggingVertex = None
 
 	"""
-	Changes state depending on where on the menu was clicked
-	"""
-	def menuCanvasClickedEvent(self, event):
-		x = event.x
-		y = event.y
-		if (x >= self.menuOvalX - self.menuOvalSize / 2) and (x <= self.menuOvalX + self.menuOvalSize / 2):
-			self.setState(State.PLACING_VERTEX)
-		elif (x >= self.menuLineX - self.menuLineSize / 2) and (x <= self.menuLineX + self.menuLineSize / 2):
-			self.setState(State.PLACING_EDGE)
-		else:
-			self.setState(State.NONE)
-
-	"""
 	Highlights any vertices under the mouse.
 	If currently moving a vertex, calles the move method of the vertex
 	If currently placing an edge, creates an edge that will follow the mouse
     """
 	def mainCanvasMouseOverEvent(self, event):
-		for vertex in self.vertices:
+		for vid in self.vertices:
+			vertex = self.vertViews[vid]
 			if vertex.deleted:
-				self.vertices.remove(vertex)
+				self.vertices.remove(vid)
+				self.vertViews.pop(vid)
 			elif vertex.containsPoint(event.x, event.y):
 				vertex.mouseEnterEvent(event)
 			elif not vertex.containsPoint(event.x, event.y):
@@ -113,105 +95,89 @@ class MouseReader():
 		if self.draggingVertex is not None:
 			self.draggingVertex.move(event)
 
-		if self.state == State.PLACING_EDGE and not self.selectedVertex is None:
-			if self.placingEdge is None:
-				self.placingEdge = EdgeView(self.canvas, self.selectedVertex)
-			self.placingEdge.followMouseEvent(event)
-
 	"""
 	Deletes any left over vertices then places a vertex at the
 	given point unless there is already one in that location
 	"""
 	def placeVertex(self, event):
-		for vertex in self.vertices:
+		for key, vertex in self.vertViews.items():
 			if vertex.deleted:
-				self.vertices.remove(vertex)
+				self.vertices.remove(key)
+				self.vertViews.remove(key)
 			elif vertex.containsPoint(event.x, event.y):
 				vertex.clickedEvent(event)
-				print(self.graph.printVerticesFormatted())
 				return
 
-		vID = self.vIDGen.genNew()
-		vLabel = "v" + str(vID)
-		vertex = VertexView(self.canvas, event.x, event.y, vID, label = vLabel)
-		self.vertices.append(vertex)
-		self.graph.addVertex(Vertex(vLabel, vID))
+		vid = str(uuid4())
+		self.vertices.add(vid)
+
+		vLabel = "v" + str(self.vIDGen.genNew())
+		vertex = VertexView(self.canvas, event.x, event.y, vid, label = vLabel)
+		self.vertViews[vid] = vertex
+		#self.graph.addVertex(Vertex(vLabel, vID)) ADD TO GRAPH
 
 	"""
 	Create a new edge at the location of the mouse if there is
 	a vertex there
 	"""
-	def placeEdge(self, event):
-		for vertex in self.vertices:
-			if vertex.containsPoint(event.x, event.y):
-				if self.selectedVertex is None:
-					self.selectedVertex = vertex
-					vertex.toggleFocus(True)
-				elif self.selectedVertex == vertex:
-					self.selectedVertex = None
-					vertex.toggleFocus(False)
-					self.placingEdge.delete()
-					self.placingEdge = None
-				else:
-					# Place a new edge between the selected vertex and the vertex under the cursor
-					edgeID = vertex.labelText + "-" + self.selectedVertex.labelText
-					edge = EdgeView(self.canvas, vertex, self.selectedVertex, label = edgeID, edgeID = edgeID)
-					self.edges.append(edge)
-					vertex.toggleFocus(False)
-					vertex.addEdge(edge)
-
-					v1 = self.getVertexFromView(vertex)
-					v2 = self.getVertexFromView(self.selectedVertex)
-					self.graph.addEdge(v1, v2)
-
-					self.selectedVertex.toggleFocus(False)
-					self.selectedVertex.addEdge(edge)
-					self.selectedVertex = None
-					self.placingEdge.delete()
-					self.placingEdge = None
-				return
+	def addEdge(self, vert1, vert2):
+		id1 = self.getVertIdFromName(vert1)
+		id2 = self.getVertIdFromName(vert2)
+		print("TESTING NEW ADD EDGE METHOD")
+		print(id1)
+		print(id2)
+		edgeId = str(uuid4())
+		edgeLabel = vert1 + "-" + vert2
+		vertex1 = self.vertViews[id1]
+		vertex2 = self.vertViews[id2]
+		edge = EdgeView(self.canvas, vertex1, vertex2, label = edgeLabel, edgeID = edgeId)
+		self.edges.add(edgeId)
+		self.edgeViews[edgeId] = edge
+		vertex1.addEdge(edge)
+		vertex2.addEdge(edge)
 
 	"""
 	Selects the vertex under the mouse to be the vertex being moved
 	"""
 	def moveVertex(self, event):
-		for vertex in self.vertices:
+		for vid in self.vertices:
+			vertex = self.vertViews[vid]
 			if vertex.deleted:
-				self.vertices.remove(vertex)
+				self.vertices.remove(vid)
+				self.vertViews.remove(vid)
 			elif vertex.containsPoint(event.x, event.y):
 				self.draggingVertex = vertex
 
-	"""
-	Given a vertex view, gives the vertex data associated with it
-	"""
-	def getVertexFromView(self, view):
-		for vertex in self.graph.vertices:
-			if vertex.id == view.id:
-				return vertex
-
-	def removeVertex(self, vertex):
-		vertex.delete()
-		self.vertices.remove(vertex)
-		# TODO: Automatically remove from the graph as well
-
-	def removeVertexByID(self, *vertexIDs):
+	def removeVertexByName(self, *vertexIDs):
 		for vertexID in vertexIDs:
-			for vertex in self.vertices:
-				if str(vertex.id) == vertexID:
-					self.removeVertex(vertex)
+			for key, vertex in self.vertViews.items():
+				if str(vertex.labelText) == vertexID:
+					self.removeConnectedEdges(vertex)
+					vertex.delete()
+					self.vertices.remove(key)
+					self.vertViews.pop(key)
 					break
-
-	def removeEdge(self, edge):
-		edge.delete()
-		self.edges.remove(edge)
-		# TODO: Automatically remove from the graph as well
 
 	def removeEdgeByID(self, *edgeIDs):
 		for edgeID in edgeIDs:
-			for edge in self.edges:
-				if edge.edgeID == edgeID:
-					self.removeEdge(edge)
-					break
+			edge = self.edgeViews[edgeID]
+			self.edges.remove(edgeID)
+			self.edgeViews.pop(edgeID)
+			edge.delete()
+
+	def removeConnectedEdges(self, vertex):
+		for edge in vertex.edges:
+			self.removeEdgeByID(edge.edgeID)
+
+	def removeEdgeByVertices(self, vertex1name, vertex2name):
+		vid1 = self.getVertIdFromName(vertex1name)
+		vid2 = self.getVertIdFromName(vertex2name)
+
+		edgeID = self.getEdgeIdByVertIds(vid1, vid2)
+		edge = self.edgeViews[edgeID]
+		edge.delete()
+		self.edges.remove(edgeID)
+		self.edgeViews.pop(edgeID)
 
 	def updateWeight(self, edgeID, weight):
 		for edge in self.edges:
@@ -219,19 +185,7 @@ class MouseReader():
 				edge.updateWeight(weight)
 				return
 
-	def restart(self, graph = Graph()):
-		numVertices = len(self.vertices)
-		numEdges = len(self.edges)
-		for num in range(numVertices):
-			self.removeVertex(self.vertices[0])
-		for num in range(numEdges):
-			self.removeEdge(self.edges[0])
-		self.graph = graph
-		# Restart id generators
-		self.vIDGen = UniqueIDGenerator("v")
-		self.eIDGen = UniqueIDGenerator("e")
-
-	def receiveCommand(self):
+	def receiveCommand(self, event=None):
 		current = self.commandEntry.get()
 		print(current)
 		funcDict = self.parseCommand(current)
@@ -247,20 +201,5 @@ class MouseReader():
 		if command in self.strToFunc:
 			funcDict["command"] = self.strToFunc[command]
 			funcDict["args"] = args
-			
+
 		return funcDict
-
-	"""
-	Set the current state of the mouse reader
-	"""
-	def setState(self, newState):
-		if self.state == newState:
-			self.state = State.NONE
-		else:
-			self.state = newState
-
-class State(Enum):
-	NONE = 1
-	PLACING_VERTEX = 2
-	PLACING_EDGE = 3
-	EDIT = 4
