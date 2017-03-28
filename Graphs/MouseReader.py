@@ -22,7 +22,9 @@ class MouseReader():
 			"removeEdge" : self.removeEdgeByVertices,
 			"removeVertex" : self.removeVertexByName,
 			"updateEdgeWeight" : self.updateWeight,
-			"printGraphInfo" : self.printGraphInfo
+			"printGraphInfo" : self.printGraphInfo,
+			"bipartite" : self.createBipartition,
+			"dijkstra" : self.dijkstra
 		}
 
 		# Declare graph data object
@@ -189,11 +191,42 @@ class MouseReader():
 		self.edgeViews.pop(edgeID)
 		self.graph.removeEdgeByVertIds(vid1, vid2)
 
-	def updateWeight(self, edgeID, weight):
-		for edge in self.edges:
-			if edge.edgeID == edgeID:
-				edge.updateWeight(weight)
-				return
+	def updateWeight(self, v1, v2, weight):
+		vid1 = self.getVertIdFromName(v1)
+		vid2 = self.getVertIdFromName(v2)
+		edgeId = self.getEdgeIdByVertIds(vid1, vid2)
+		self.edgeViews[edgeId].updateWeight(weight)
+		self.graph.getEdgeById(edgeId).weight = int(weight)
+
+	def createBipartition(self):
+		partitions = self.graph.createBipartition()
+
+		if partitions is None:
+			return
+
+		for vertex in partitions["part1"]:
+			vId = vertex.id
+			self.vertViews[vId].color = "purple"
+		for vertex in partitions["part2"]:
+			vId = vertex.id
+			self.vertViews[vId].color = "yellow"
+
+	def dijkstra(self, origin):
+		vertId = self.getVertIdFromName(origin)
+		print("retrieved vertex id : " + vertId)
+		originVertex = None
+		for vertex in self.graph.vertices:
+			if vertex.id == vertId:
+				originVertex = vertex
+		if originVertex is None:
+			print("Could not find origin...")
+			return
+		paths = self.graph.dijkstra(originVertex)
+
+		for key, value in paths.items():
+			if value is not None:
+				edgeId = self.getEdgeIdByVertIds(key, value)
+				self.edgeViews[edgeId].fillColor = "purple"
 
 	def printGraphInfo(self):
 		self.graph.printInfo()

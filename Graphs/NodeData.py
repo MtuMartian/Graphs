@@ -8,12 +8,19 @@ class Vertex:
 		self.edgeSet = []
 		self.name = name
 		self.id = uuid
+		self.partition = None
+		self.distance = -1
 
 	def adjacentVertices(self):
 		adjVertices = []
 		for edge in self.edgeSet:
 			adjVertices.append(edge.opposite(self))
 		return adjVertices
+
+	def connectingEdge(self, adjacent):
+		for edge in self.edgeSet:
+			if edge.vertex1 == adjacent or edge.vertex2 == adjacent:
+				return edge
 
 	def degree(self):
 		return len(self.edgeSet)
@@ -44,6 +51,7 @@ class Edge:
 		self.vertex2 = vertex2
 		self.weight = weight
 		self.name = name
+		self.id = uuid
 
 	def checkEquality(self, vertex1, vertex2):
 		if self.vertex1 == vertex1 and self.vertex2 == vertex2:

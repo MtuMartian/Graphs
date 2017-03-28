@@ -11,10 +11,12 @@ class VertexView:
 		self.canvas = canvas
 		self.id = uuid
 		self.size = 10
+		self.color = "blue"
+		self.highlightedColor = "green"
 		self.circle = self.canvas.create_oval(
 			x - self.size, y - self.size,
 			x + self.size, y + self.size,
-			fill="green")
+			fill=self.highlightedColor)
 		self.x = x
 		self.y = y
 		self.deleted = False
@@ -81,9 +83,9 @@ class VertexView:
 	def redraw(self):
 		for edge in self.edges:
 			edge.redraw()
-		color = "blue"
+		color = self.color
 		if self.isHighlighted:
-			color = "green"
+			color = self.highlightedColor
 		self.canvas.delete(self.circle)
 		self.canvas.delete(self.label)
 		self.circle = self.canvas.create_oval(
