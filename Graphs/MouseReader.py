@@ -11,6 +11,7 @@ from NodeData import UniqueIDGenerator
 from Graph import Graph
 
 import tkinter
+import random
 from enum import Enum
 from uuid import uuid4
 
@@ -24,7 +25,9 @@ class MouseReader():
 			"updateEdgeWeight" : self.updateWeight,
 			"printGraphInfo" : self.printGraphInfo,
 			"bipartite" : self.createBipartition,
-			"dijkstra" : self.dijkstra
+			"dijkstra" : self.dijkstra,
+			"readFile" : self.readFile,
+			"genRand" : self.randomGraph
 		}
 
 		# Declare graph data object
@@ -52,6 +55,9 @@ class MouseReader():
 			if vertex.labelText == name:
 				return key
 
+	def getVertNameFromId(self, vid):
+		return self.vertViews[vid].labelText
+
 	def getEdgeIdByVertIds(self, vid1, vid2):
 		if vid1 not in self.vertices or vid2 not in self.vertices:
 			return
@@ -71,7 +77,7 @@ class MouseReader():
 				self.moveVertex(vertex)
 				return
 
-		self.addVertex(event)
+		self.addVertex(event.x, event.y)
 
 	"""
 	When the mouse is lifted, the dragging vertex should
@@ -103,22 +109,24 @@ class MouseReader():
 	Deletes any left over vertices then places a vertex at the
 	given point unless there is already one in that location
 	"""
-	def addVertex(self, event):
-		for key, vertex in self.vertViews.items():
-			if vertex.deleted:
-				self.vertices.remove(key)
-				self.vertViews.remove(key)
-			elif vertex.containsPoint(event.x, event.y):
-				vertex.clickedEvent(event)
-				return
+	def addVertex(self, x, y, checkOverlap = True):
+		if checkOverlap:
+			for key, vertex in self.vertViews.items():
+				if vertex.deleted:
+					self.vertices.remove(key)
+					self.vertViews.remove(key)
+				elif vertex.containsPoint(x, y):
+					vertex.clickedEvent(x, y)
+					return
 
 		vid = str(uuid4())
 		self.vertices.add(vid)
 
 		vLabel = "v" + str(self.vIDGen.genNew())
-		vertex = VertexView(self.canvas, event.x, event.y, vid, label = vLabel)
+		vertex = VertexView(self.canvas, x, y, vid, label = vLabel)
 		self.vertViews[vid] = vertex
 		self.graph.addVertex(Vertex(vLabel, vid))
+		return vid
 
 	"""
 	Create a new edge at the location of the mouse if there is
@@ -231,6 +239,38 @@ class MouseReader():
 	def printGraphInfo(self):
 		self.graph.printInfo()
 
+	def randomGraph(self, numVertices, weightMax, edgeChance):
+		vertices = []
+		for i in range(int(numVertices)):
+			vertices.append(self.addVertex(random.randint(10, 1190), random.randint(10, 390), False))
+
+		for i in range(int(numVertices)):
+			for j in range(int(numVertices)):
+				if i > j and random.randint(0, 100) < int(edgeChance):
+					weight = random.randint(1, int(weightMax))
+					v1 = self.getVertNameFromId(vertices[i])
+					v2 = self.getVertNameFromId(vertices[j])
+					self.addEdge(v1, v2, weight)
+
+
+	def readFile(self, fileName):
+		file = open(fileName, "r")
+		firstLine = file.readline().split(" ")
+		numVertices = firstLine[0]
+		numEdges = firstLine[1]
+		print("This file defines a graph with {0} vertices and {1} edges".format(numVertices, numEdges))
+		vertices = []
+		for i in range(int(numVertices)):
+			vertexLine = file.readline().split(" ")
+			vertices.append(self.addVertex(int(vertexLine[0]), int(vertexLine[1]), False))
+
+		for i in range(int(numEdges)):
+			edgeLine = file.readline().split(" ")
+			v1 = self.getVertNameFromId(vertices[int(edgeLine[0])])
+			v2 = self.getVertNameFromId(vertices[int(edgeLine[1])])
+			weight = edgeLine[2]
+			self.addEdge(v1, v2, weight)
+
 	def receiveCommand(self, event=None):
 		current = self.commandEntry.get()
 		print(current)
@@ -249,3 +289,4 @@ class MouseReader():
 			funcDict["args"] = args
 
 		return funcDict
+

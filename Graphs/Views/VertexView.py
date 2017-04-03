@@ -28,7 +28,7 @@ class VertexView:
 		self.label = self.canvas.create_text(self.x, self.y + self.size + self.labelMargin, text = label)
 		self.labelText = label
 
-	def clickedEvent(self, event):
+	def clickedEvent(self, x, y):
 		self.toggleHighlight(not self.isHighlighted)
 
 	def mouseEnterEvent(self, event):

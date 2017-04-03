@@ -9,15 +9,15 @@ def main():
 	mainWindow = tkinter.Tk()
 
 	# Create a canvas to display the graph
-	canvas = tkinter.Canvas(mainWindow, width = 400, height = 400)
+	canvas = tkinter.Canvas(mainWindow, width = 1200, height = 600)
 	canvas.pack()
 	# Create border
-	canvas.create_line(10, 10, 10, 390)
-	canvas.create_line(10, 10, 390, 10)
-	canvas.create_line(390, 10, 390, 390)
-	canvas.create_line(10, 390, 390, 390)
+	canvas.create_line(10, 10, 10, 590)
+	canvas.create_line(10, 10, 1190, 10)
+	canvas.create_line(1190, 10, 1190, 590)
+	canvas.create_line(10, 590, 1190, 590)
 	# Create a canvas for the menu
-	menuCanvas = tkinter.Canvas(mainWindow, width = 400, height = 100)
+	menuCanvas = tkinter.Canvas(mainWindow, width = 1200, height = 100)
 	menuCanvas.pack()
 	# Create an entry for user to input commands
 	commandEntry = tkinter.Entry()
